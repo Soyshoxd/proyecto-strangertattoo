@@ -1,7 +1,7 @@
 'use client';
 
 import { useState } from 'react';
-import { auth, db } from '@/lib/firebase-server';
+import { auth, db } from '@/lib/firebase-client';
 import { createUserWithEmailAndPassword, updateProfile } from 'firebase/auth';
 import { useRouter } from 'next/navigation';
 import { doc, setDoc } from 'firebase/firestore';
@@ -18,22 +18,27 @@ export default function RegisterPage() {
   const [preview, setPreview] = useState(null);
 
   const handleFileChange = (e) => {
-        const archivo = e.target.files[0];
-        setFile(archivo); // Guarda el archivo en el estado
-        if (archivo) {
-            setPreview(URL.createObjectURL(archivo)); // Genera una URL temporal para mostrar el preview
-        } else {
-            setPreview(null); // Si no hay archivo, elimina el preview
-        }
-    };
+    const archivo = e.target.files[0];
+    setFile(archivo); // Guarda el archivo en el estado
+    if (archivo) {
+      setPreview(URL.createObjectURL(archivo)); // Genera una URL temporal para mostrar el preview
+    } else {
+      setPreview(null); // Si no hay archivo, elimina el preview
+    }
+  };
 
 
   const handleRegister = async (e) => {
     e.preventDefault();
-    if (password !== confirmPassword){
-        setError('las contraseñas no coinciden');
-        return;
+    if (password !== confirmPassword) {
+      setError('las contraseñas no coinciden');
+      return;
     }
+    if (password.length < 8) {
+    setError('La contraseña debe tener al menos 8 caracteres.');
+    return;
+  }
+
     try {
       const credenciales = await createUserWithEmailAndPassword(auth, email, password);
 
@@ -57,7 +62,11 @@ export default function RegisterPage() {
       router.push('/productos');
     } catch (err) {
       console.error(err);
-      setError('No se pudo registrar el usuario.');
+      if (err.code === 'auth/email-already-in-use') {
+        setError('Este correo ya está registrado. Intenta iniciar sesión o usa otro correo.');
+      } else {
+        setError('No se pudo registrar el usuario. Intenta de nuevo.');
+      }
     }
   };
 

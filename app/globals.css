@@ -1,30 +1,104 @@
 @import 'tailwindcss';
 
-@theme{
-    --font-monserrat: 'Montserrat', sans-serif;
-    --font-mistranger: 'Myfontstran-Regular', sans-serif;
+@theme {
+  --font-monserrat: 'Montserrat', sans-serif;
+  --font-mistranger: 'Myfontstran-Regular', sans-serif;
+  --color-stranger-red: #ba0000;
+  --color-black: #000000;
+  --color-gray-100: #f1f1f1;
 }
 
+/* CSS crítico que se necesita inmediatamente */
 @font-face {
   font-family: 'Myfontstran-Regular';
-  src: url('/fonts/Myfont-Regular.woff2') format('woff2');
+  src: url('/fonts/Fuentestrangerdef-Regular.woff') format('woff');
   font-weight: normal;
   font-style: normal;
-}
-body{
-  font-family: var(--font-monserrat);
-  color: #f1f1f1;
+  font-display: swap;
 }
 
-.text-glow-red {
-  text-shadow:
-    0 0 15px #ff1a1a,
-    0 0 20px #ff1a1a;
+/* Estilos base críticos */
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
 }
+
+html {
+  line-height: 1.5;
+  -webkit-text-size-adjust: 100%;
+  tab-size: 4;
+}
+
+body {
+  margin: 0;
+  font-family: var(--font-monserrat);
+  color: var(--color-gray-100);
+  background-color: var(--color-black);
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+/* Utilidades personalizadas */
+.text-glow-red {
+  text-shadow: 0 0 15px #ff1a1a, 0 0 20px #ff1a1a;
+}
+
 .scrollbar-hide::-webkit-scrollbar {
   display: none;
 }
+
 .scrollbar-hide {
-  -ms-overflow-style: none;  /* IE y Edge */
-  scrollbar-width: none;     /* Firefox */
+  -ms-overflow-style: none;
+  scrollbar-width: none;
+}
+
+/* Optimizaciones de rendimiento para móviles */
+* {
+  -webkit-tap-highlight-color: transparent;
+}
+
+/* Aceleración de hardware para transiciones críticas */
+.text-glow-red,
+.transition,
+.hover\:scale-105:hover,
+.hover\:bg-red-700:hover {
+  will-change: auto;
+  transform: translateZ(0);
+}
+
+/* Mejoras de scroll en móviles */
+.overflow-x-auto {
+  -webkit-overflow-scrolling: touch;
+  overscroll-behavior-x: contain;
+}
+
+/* Optimización de fuentes */
+@media (max-width: 768px) {
+  body {
+    text-rendering: optimizeSpeed;
+  }
+}
+
+@media (min-width: 769px) {
+  body {
+    text-rendering: optimizeLegibility;
+  }
+}
+
+/* Reducir animaciones en dispositivos con batería baja */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+}
+
+/* Optimización de imágenes */
+img {
+  content-visibility: auto;
 }

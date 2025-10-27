@@ -5,26 +5,37 @@ import { FaStar } from 'react-icons/fa';
   import { Timestamp } from "firebase/firestore";
 
 const ReviewCard = ({ review }) => {
-  const { comentario, rating, usuario, verificado, fechaCreacion, foto } = review;
+  if (!review) return null;
+  
+  const { comentario, rating, usuario, verificado, fechaCreacion, foto, esAnonima:anonimo } = review;
 
   const tieneImagen = foto && foto.trim() !== '';
 
 
-const convertirFecha = (obj) => {
-  if (obj?.seconds && obj?.nanoseconds) {
-    const millis = obj.seconds * 1000 + Math.floor(obj.nanoseconds / 1e6);
-    return new Date(millis);
-  }
-  return null;
-};
-
-const fecha = review.fechaCreacion
-  ? convertirFecha(review.fechaCreacion).toLocaleDateString('es-CO', {
+const fecha = (() => {
+  if (!review?.fechaCreacion) return 'Fecha no disponible';
+  
+  // Si es un string (ya serializado)
+  if (typeof review.fechaCreacion === 'string') {
+    return new Date(review.fechaCreacion).toLocaleDateString('es-CO', {
       year: 'numeric',
       month: 'long',
       day: 'numeric',
-    })
-  : 'Fecha no disponible';
+    });
+  }
+  
+  // Si es un objeto Timestamp de Firestore (fallback)
+  if (review.fechaCreacion?.seconds && review.fechaCreacion?.nanoseconds) {
+    const millis = review.fechaCreacion.seconds * 1000 + Math.floor(review.fechaCreacion.nanoseconds / 1e6);
+    return new Date(millis).toLocaleDateString('es-CO', {
+      year: 'numeric',
+      month: 'long',
+      day: 'numeric',
+    });
+  }
+  
+  return 'Fecha no disponible';
+})();
 
   return (
     <div
@@ -39,6 +50,7 @@ const fecha = review.fechaCreacion
             src={foto}
             alt="Foto subida por usuario"
             fill
+            sizes="220px"
             className="object-cover"
           />
         </div>
@@ -49,7 +61,7 @@ const fecha = review.fechaCreacion
         <div>
           <div className="flex items-center justify-between mb-1">
             <p className="font-semibold text-sm text-gray-700">
-              {usuario?.nombre || 'Usuario anónimo'}
+              {anonimo ? 'Usuario anónimo' : usuario?.nombre || 'Sin nombre'}
             </p>
             {verificado && (
               <span className="text-green-600 text-xs font-medium">

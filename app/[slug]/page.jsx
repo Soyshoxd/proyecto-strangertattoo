@@ -3,19 +3,31 @@ import Navbar from '@/components/navbar';
 import Footer from '@/components/footer';
 import Image from 'next/image';
 import { notFound } from 'next/navigation';
-import { db } from '@/lib/firebase-server';
-import { collection, query, where, getDocs } from 'firebase/firestore';
+
+async function getArtistBySlug(slug) {
+  try {
+    const baseUrl = process.env.NEXT_PUBLIC_BASE_URL || 'http://localhost:3000';
+    const res = await fetch(`${baseUrl}/api/tatuadores`, {
+      next: { revalidate: 300 }
+    });
+    
+    if (!res.ok) return null;
+    const artists = await res.json();
+    return artists.find(artist => artist.slug === slug) || null;
+  } catch (error) {
+    console.error('Error fetching artist:', error);
+    return null;
+  }
+}
 
 export async function generateMetadata({ params }) {
   const resolvedParams = await Promise.resolve(params);
   const slug = resolvedParams?.slug;
 
-  const q = query(collection(db, "tatuadores"), where("slug", "==", slug));
-  const snap = await getDocs(q);
-  if (snap.empty) {
+  const artist = await getArtistBySlug(slug);
+  if (!artist) {
     return { title: 'Tatuador no encontrado | Stranger Tattoo' };
   }
-  const artist = snap.docs[0].data();
 
   return {
     title: `${artist.nombre} | Stranger Tattoo`,
@@ -31,23 +43,10 @@ const ArtitsDetailPage = async ({ params }) => {
   const resolvedParams = await Promise.resolve(params);
   const slug = resolvedParams?.slug;
 
-  const q = query(collection(db, "tatuadores"), where("slug", "==", slug));
-  const snap = await getDocs(q);
-
-  let artist = null;
-
-  if (!snap.empty) {
-    artist = snap.docs[0].data();
-  } else {
-    const q2 = query(collection(db, "perforadores"), where("slug", "==", slug));
-    const snap2 = await getDocs(q2);
-    if (!snap2.empty) {
-      artist = snap2.docs[0].data();
-    }
-  }
+  const artist = await getArtistBySlug(slug);
 
   if (!artist) {
-    return <div>Artista no encontrado</div>;
+    notFound();
   }
 
   return (
@@ -79,7 +78,7 @@ const ArtitsDetailPage = async ({ params }) => {
             </a>
           </div>
 
-          <GaleriaGrid imagenes={artist.galeria || []} intervalo={5000} />
+          <GaleriaGrid imagenes={artist.galeria || []} intervalo={2500} />
 
           <div className="flex justify-end my-6">
             <a

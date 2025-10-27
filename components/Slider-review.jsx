@@ -23,9 +23,11 @@ export default function ReviewSlider({ reviews = [] }) {
   }, []);
 
   const scroll = (dir) => {
+    if (!scrollRef.current || !filteredReviews.length) return;
+    
     const container = scrollRef.current;
     const scrollWidth = container.offsetWidth;
-    const cardWidth = container.scrollWidth / filteredReviews.length;
+    const cardWidth = filteredReviews.length > 0 ? container.scrollWidth / filteredReviews.length : 0;
     const scrollStep = cardWidth * Math.floor(cardsPorVista);
 
     const maxPage = Math.ceil(filteredReviews.length / Math.floor(cardsPorVista)) - 1;
@@ -37,14 +39,14 @@ export default function ReviewSlider({ reviews = [] }) {
   };
 
   // 🔴 Filtrar solo las reseñas que se deben mostrar en el slider
-  const filteredReviews = reviews.filter(r => r.mostrarEnSlider);
+  const filteredReviews = reviews?.filter(r => r?.mostrarEnSlider) || [];
 
-  const totalPaginas = Math.ceil(filteredReviews.length / Math.floor(cardsPorVista));
+  const totalPaginas = Math.max(1, Math.ceil(filteredReviews.length / Math.floor(cardsPorVista)));
 
   return (
     <section className="mt-2 w-full">
       <div className="mt-1 w-full px-4">
-        <div className="overflow-hidden py-6 bg-black rounded-lg relative w-full">
+        <div className="overflow-hidden bg-black rounded-lg relative w-full">
 
           {/* Flechas */}
           <button

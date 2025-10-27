@@ -1,13 +1,25 @@
 // src/app/components/Equipo.jsx
-import { collection, getDocs } from 'firebase/firestore';
-import { db } from '@/lib/firebase-server';
 import Image from 'next/image';
 import Link from 'next/link';
-import imgEstudio from '@/assets/estudio1.png'; // asegúrate de tener esta imagen
+import imgEstudio from '@/assets/ImgEstudio3.png'; // asegúrate de tener esta imagen
+
+async function getTatuadores() {
+  try {
+    const baseUrl = process.env.NEXT_PUBLIC_BASE_URL || 'http://localhost:3000';
+    const res = await fetch(`${baseUrl}/api/tatuadores`, {
+      next: { revalidate: 300 }
+    });
+    
+    if (!res.ok) return [];
+    return await res.json();
+  } catch (error) {
+    console.error('Error fetching tatuadores:', error);
+    return [];
+  }
+}
 
 export default async function Equipo() {
-  const snapshot = await getDocs(collection(db, 'tatuadores'));
-  const todos = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+  const todos = await getTatuadores();
 
   const tatuadores = todos.filter(t => t.tipo === 'tatuador');
   const perforadores = todos.filter(t => t.tipo === 'perforador');
@@ -25,7 +37,7 @@ export default async function Equipo() {
       <div className="flex justify-center w-full mt-2 ">
         <div className="flex items-center justify-center gap-4 max-w-[1000px] w-full p-4 ">
           {/* Imagen del estudio */}
-          <div className="h-auto w-43 sm:h-58 sm:w-40  md:h-80 md:w-60 overflow-hidden mx-auto sm:mx-0">
+          <div className="h-auto w-44 sm:h-20 sm:w-10  md:h-80 md:w-60 overflow-hidden mx-auto sm:mx-0">
             <Image
               src={imgEstudio}
               alt="Interior del estudio Stranger Tattoo"

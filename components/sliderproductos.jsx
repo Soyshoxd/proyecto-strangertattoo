@@ -1,6 +1,6 @@
 "use client";
 
-import { useRef, useState, useEffect } from "react";
+import { useRef, useState, useEffect, useCallback } from "react";
 import { MdKeyboardArrowLeft, MdKeyboardArrowRight } from "react-icons/md";
 import CardProducto from "./cardproduct";
 
@@ -8,26 +8,40 @@ export default function SliderProductos({ productos }) {
   const scrollRef = useRef(null);
   const [pagina, setPagina] = useState(0);
   const [cardsPorVista, setCardsPorVista] = useState(1);
+  
+  const filteredProducts = productos.filter(p => p.mostrarEnSlider);
+
+  const calcularCards = useCallback(() => {
+    const ancho = window.innerWidth;
+    if (ancho >= 1280) setCardsPorVista(4);
+    else if (ancho >= 768) setCardsPorVista(3);
+    else setCardsPorVista(2.2);
+  }, []);
 
   useEffect(() => {
-    const calcularCards = () => {
-      const ancho = window.innerWidth;
-      if (ancho >= 1280) setCardsPorVista(4);       // PC
-      else if (ancho >= 768) setCardsPorVista(3);    // Tablet
-      else setCardsPorVista(2.2);                    // Móvil (2 completas + un trozo)
-    };
     calcularCards();
-    window.addEventListener("resize", calcularCards);
-    return () => window.removeEventListener("resize", calcularCards);
-  }, []);
+    
+    // Debounce para el resize
+    let timeoutId;
+    const debouncedResize = () => {
+      clearTimeout(timeoutId);
+      timeoutId = setTimeout(calcularCards, 150);
+    };
+    
+    window.addEventListener("resize", debouncedResize, { passive: true });
+    return () => {
+      window.removeEventListener("resize", debouncedResize);
+      clearTimeout(timeoutId);
+    };
+  }, [calcularCards]);
 
   const scroll = (dir) => {
     const container = scrollRef.current;
     const scrollWidth = container.offsetWidth;
-    const cardWidth = container.scrollWidth / productos.length;
+    const cardWidth = container.scrollWidth / filteredProducts.length;
     const scrollStep = cardWidth * Math.floor(cardsPorVista);
 
-    const maxPage = Math.ceil(productos.length / Math.floor(cardsPorVista)) - 1;
+    const maxPage = Math.ceil(filteredProducts.length / Math.floor(cardsPorVista)) - 1;
     const newPage = dir === "left" ? pagina - 1 : pagina + 1;
     if (newPage < 0 || newPage > maxPage) return;
 
@@ -35,7 +49,8 @@ export default function SliderProductos({ productos }) {
     container.scrollBy({ left: dir === "left" ? -scrollStep : scrollStep, behavior: "smooth" });
   };
 
-  const totalPaginas = Math.ceil(productos.length / Math.floor(cardsPorVista));
+  const totalPaginas = Math.ceil(filteredProducts.length / Math.floor(cardsPorVista));
+
 
   return (
     <div className="mt-1 w-full px-4">
@@ -59,8 +74,9 @@ export default function SliderProductos({ productos }) {
         <div
           ref={scrollRef}
           className="flex gap-2 snap-x snap-mandatory overflow-x-auto scrollbar-hide scroll-smooth"
+          style={{ scrollBehavior: 'smooth', willChange: 'scroll-position' }}
         >
-          {productos.map((p, index) => (
+          {filteredProducts.map((p, index) => (
             <CardProducto key={`${p.id}-${index}`} producto={p} />
           ))}
         </div>

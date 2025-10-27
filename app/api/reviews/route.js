@@ -1,13 +1,11 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { db } from '@/lib/firebase-server';
-import { collection, addDoc, getDocs, doc, getDoc, query, orderBy, updateDoc } from 'firebase/firestore';
 
 // GET - Obtener todas las reseñas
 export async function GET() {
   try {
-    const reviewsRef = collection(db, 'reviews');
-    const q = query(reviewsRef, orderBy('fechaCreacion', 'desc'));
-    const snapshot = await getDocs(q);
+    const reviewsRef = db.collection('reviews');
+    const snapshot = await reviewsRef.orderBy('fechaCreacion', 'desc').get();
     
     const reviews = [];
     for (const docSnapshot of snapshot.docs) {
@@ -16,10 +14,9 @@ export async function GET() {
       
       // Si tiene uid, obtener datos del usuario
       if (reviewData.uid) {
-        const userRef = doc(db, 'users', reviewData.uid);
-        const userSnapshot = await getDoc(userRef);
-        if (userSnapshot.exists()) {
-          userData = userSnapshot.data();
+        const userDoc = await db.collection('users').doc(reviewData.uid).get();
+        if (userDoc.exists) {
+          userData = userDoc.data();
         }
       }
       
@@ -41,7 +38,7 @@ export async function GET() {
 export async function POST(request) {
   try {
     const body = await request.json();
-    const { comentario, rating, foto, uid, datosUsuario,mostrarEnSlider } = body;
+    const { comentario, rating, foto, uid, datosUsuario, mostrarEnSlider } = body;
 
     if (!comentario || !rating) {
       return NextResponse.json({ error: 'Comentario y rating son requeridos' }, { status: 400 });
@@ -68,8 +65,7 @@ export async function POST(request) {
       reviewData.verificado = false;
     }
 
-    const reviewsRef = collection(db, 'reviews');
-    const docRef = await addDoc(reviewsRef, reviewData);
+    const docRef = await db.collection('reviews').add(reviewData);
     
     return NextResponse.json({ 
       success: true, 

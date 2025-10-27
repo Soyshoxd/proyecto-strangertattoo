@@ -1,14 +1,15 @@
 // app/listadedeseos/page.js
 'use client';
 import { useEffect, useState } from 'react';
-import { auth } from '@/lib/firebase-server';
-import { getWishlist, removeFromWishlist } from '@/lib/wishlist';
+import { auth } from '@/lib/firebase-client';
+import { eliminarWishlist, getWishlist, } from '@/lib/wishlist';
 import { guardarCarritoFirestore } from '@/lib/carrito';
 import Image from 'next/image';
 import Link from 'next/link';
 import { FaRegStar, FaStar, FaHeart, FaTrash } from 'react-icons/fa';
 import { IoCartOutline } from 'react-icons/io5';
 import ModalAviso from '@/components/modal-aviso';
+import { formatoCOP } from '@/lib/formato-cop';
 
 const WishlistPage = () => {
   const [wishlist, setWishlist] = useState([]);
@@ -49,7 +50,7 @@ const WishlistPage = () => {
       setMostrarModal(true);
     }
   };
-  
+
   const seguirComoInvitado = () => {
     if (productoSeleccionado) {
       const carrito = JSON.parse(localStorage.getItem('carrito')) || [];
@@ -58,7 +59,7 @@ const WishlistPage = () => {
       setProductoSeleccionado(null);
     }
   };
-  
+
   const redirigirLogin = () => {
     window.location.href = '/login';
   };
@@ -66,7 +67,7 @@ const WishlistPage = () => {
   const eliminarItem = async (productId) => {
     if (user) {
       try {
-        await removeFromWishlist(user.uid, productId);
+        await eliminarWishlist(user.uid, productId);
         setWishlist(wishlist.filter(item => item.id !== productId));
       } catch (error) {
         console.error('Error eliminando de lista de deseos:', error);
@@ -122,18 +123,22 @@ const WishlistPage = () => {
           ) : (
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4 md:gap-6">
               {wishlist.map((item) => (
-                <div key={item.id} className="bg-gray-900 rounded-lg overflow-hidden shadow-lg hover:shadow-xl transition-shadow">
+                <div
+                  key={item.id}
+                  className="bg-gray-900 rounded-lg overflow-hidden shadow-lg hover:shadow-xl transition-shadow flex md:flex-col flex-row"
+                >
                   {/* Imagen del producto */}
-                  <div className="relative aspect-square">
+                  <div className="relative md:aspect-square aspect-auto w-full">
                     <Image
                       src={item.img}
                       alt={item.nombre}
                       fill
+                      sizes="(max-width: 768px) 100vw, (max-width: 1024px) 50vw, 33vw"
                       className="object-cover"
                     />
                     <button
                       onClick={() => eliminarItem(item.id)}
-                      className="absolute top-2 right-2 bg-black bg-opacity-70 text-red-500 p-2 rounded-full hover:bg-opacity-90 transition"
+                      className="absolute top-2 right-2  bg-black bg-opacity-70 text-red-500 p-2 rounded-full hover:bg-opacity-90 transition"
                       title="Eliminar de lista de deseos"
                     >
                       <FaTrash className="text-sm" />
@@ -141,48 +146,56 @@ const WishlistPage = () => {
                   </div>
 
                   {/* Información del producto */}
-                  <div className="p-4">
-                    <h3 className="font-semibold text-white text-sm md:text-base mb-2 line-clamp-2">
-                      {item.nombre}
-                    </h3>
-                    
-                    {/* Rating */}
-                    <div className="flex items-center gap-1 mb-2">
-                      {[1, 2, 3, 4, 5].map((n) =>
-                        n <= (item.rating || 0) ? (
-                          <FaStar key={n} className="text-red-600 text-xs" />
-                        ) : (
-                          <FaRegStar key={n} className="text-gray-500 text-xs" />
-                        )
-                      )}
-                      <span className="text-gray-400 text-xs ml-1">({item.rating || 0})</span>
+                  <div className="p-4 flex flex-col justify-between w-full">
+                    <div>
+                      
+                      
+                      <h3 className="font-semibold text-white text-sm sm:text-base mb-2 line-clamp-2">
+                        {item.nombre}
+                      </h3>
+
+                      {/* Rating */}
+                      <div className="flex items-center gap-1 mb-2">
+                        {[1, 2, 3, 4, 5].map((n) =>
+                          n <= (item.rating || 0) ? (
+                            <FaStar key={n} className="text-red-600 text-xs" />
+                          ) : (
+                            <FaRegStar key={n} className="text-gray-500 text-xs" />
+                          )
+                        )}
+                        <span className="text-gray-400 text-xs ml-1">
+                          ({item.rating || 0})
+                        </span>
+                      </div>
+
+                      {/* Precio */}
+                      <p className="text-white text-lg font-bold">
+                        <span className="text-red-600">$</span>
+                        {formatoCOP(item.precio)}
+                      </p>
                     </div>
 
-                    {/* Precio */}
-                    <p className="text-white text-lg font-bold mb-4">
-                      <span className="text-red-600">$</span>
-                      {item.precio}
-                    </p>
-
                     {/* Botones */}
-                    <div className="space-y-2">
+                    <div className="space-y-2 mt-4">
                       <Link
                         href={`/detailproducts/${item.slug || item.id}`}
-                        className="w-full border border-gray-600 text-white py-2 px-4 rounded-lg hover:bg-gray-800 transition text-center block text-sm"
+                        prefetch={false}
+                        className="w-full border border-gray-600 text-white py-1 md:py-2 px-4 rounded-lg hover:bg-gray-800 transition text-center block text-sm"
                       >
                         Ver detalles
                       </Link>
                       <button
                         onClick={() => handleAgregarCarrito(item)}
-                        className="w-full bg-red-600 text-white py-2 px-4 rounded-lg font-semibold hover:bg-red-700 flex items-center justify-center gap-2 transition text-sm"
+                        className="w-full bg-red-600 text-white py-2 px-4 rounded-lg font-semibold hover:bg-red-700 flex items-center justify-center gap-2 transition text-xs"
                       >
-                        <IoCartOutline className="text-lg" />
+                        <IoCartOutline className="text-md" />
                         Añadir al carrito
                       </button>
                     </div>
                   </div>
                 </div>
               ))}
+
             </div>
           )}
         </div>

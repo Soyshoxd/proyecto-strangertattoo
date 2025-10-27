@@ -44,22 +44,22 @@ const ModalUsuario = ({ isOpen, onClose }) => {
   return (
     <div
       ref={modalRef}
-      className="absolute top-12 right-4 bg-white text-black p-4 rounded shadow-lg w-40 z-50"
+      className="absolute top-12 right-4 bg-white text-black p-3 rounded shadow-lg w-40 z-50"
     >
       {user ? (
         <>
-          <h2 className="text-lg font-bold mb-1">Hola, {user.displayName || 'Usuario'}</h2>
+          <h2 className="text-md font-bold mb-1">Hola, {user.displayName || 'Usuario'}</h2>
           <p className="text-sm mb-2">{user.email}</p>
           <button
             onClick={handleLogout}
-            className="bg-red-600 text-white w-full py-2 rounded hover:bg-red-700"
+            className="bg-red-600 text-white text-sm w-full py-2 rounded hover:bg-red-700"
           >
             Cerrar sesión
           </button>
         </>
       ) : (
         <>
-          <h2 className="text-lg font-bold mb-1">¡Bienvenido!</h2>
+          <h2 className="text-sm font-bold mb-1">¡Bienvenido!</h2>
           <p className="text-sm mb-3">Crea una cuenta o inicia sesión para guardar tu carrito.</p>
           <div className="flex flex-col gap-2">
             <button

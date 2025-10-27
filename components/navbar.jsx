@@ -1,22 +1,23 @@
 'use client';
 
-import { useEffect, useState } from 'react';
-import { FaInstagram, FaTiktok, FaFacebook, FaShoppingCart, FaUserCircle, FaPlus, FaMinus } from "react-icons/fa";
-import { IoMenu, IoPersonCircle } from "react-icons/io5";
+import { useEffect, useState, useMemo, useCallback } from 'react';
+import { FaInstagram, FaTiktok, FaFacebook, FaShoppingCart, FaUserCircle, FaPlus, FaMinus, FaHeart } from "react-icons/fa";
+import { IoPersonCircle } from "react-icons/io5";
 import Logo from "@/assets/LogoStrangerLetras.png"
 import Link from "next/link";
 import Image from 'next/image';
 import { auth, db } from '@/lib/firebase-client';
-import { onAuthStateChanged, signOut } from 'firebase/auth';
+import { onAuthStateChanged } from 'firebase/auth';
 import ModalUsuario from './modalusuario';
-import { FaHeart } from 'react-icons/fa';
-import { collection, onSnapshot, doc, getDoc } from 'firebase/firestore';
+import { collection, onSnapshot, getDocs } from 'firebase/firestore';
 import { useCarritoMigration } from '@/hooks/useCarritoMigration';
+import cacheManager, { CACHE_KEYS, CACHE_TTL } from '@/lib/cache-manager';
+import { useCacheInvalidation } from '@/hooks/useCacheInvalidation';
 
 const Navbar = () => {
   // Hook para migración automática del carrito
   useCarritoMigration();
-  
+
   const [cantidadCarrito, setCantidadCarrito] = useState(0);
   const [usuario, setUsuario] = useState(null);
   const [mostrarModalUsuario, setMostrarModalUsuario] = useState(false);
@@ -31,56 +32,121 @@ const Navbar = () => {
   //Traer lista de tatuadores y perforadores
   const [listaTatuadores, setListaTatuadores] = useState([]);
   const [listaPerforadores, setListaPerforadores] = useState([]);
+  const [isLoadingArtists, setIsLoadingArtists] = useState(false);
 
   // Hook para obtener la ruta actual con manejo de errores
   const [pathname, setPathname] = useState('');
+  const [isClient, setIsClient] = useState(false);
 
-  //traer la info de las colecciones
   useEffect(() => {
-    const unsubTatuadores = onSnapshot(collection(db, 'tatuadores'), snapshot => {
-      const data = snapshot.docs.map(doc => ({
-        id: doc.id,
-        ...doc.data(),
-      }));
-      setListaTatuadores(data);
-    });
-
-    const unsubPerforadores = onSnapshot(collection(db, 'perforadores'), snapshot => {
-      const data = snapshot.docs.map(doc => ({
-        id: doc.id,
-        ...doc.data(),
-      }));
-      setListaPerforadores(data);
-    });
-
-    return () => {
-      unsubTatuadores();
-      unsubPerforadores();
+    const handleClickOutside = (event) => {
+      if (!event.target.closest('.submenu-tatuadores') && tatuadoresDesktopAbierto) {
+        setTatuadoresDesktopAbierto(false);
+      }
+      if (!event.target.closest('.submenu-perforadores') && perforadoresDesktopAbierto) {
+        setPerforadoresDesktopAbierto(false);
+      }
     };
-  }, []);
 
-  // Función para actualizar el pathname
+    document.addEventListener('click', handleClickOutside);
+    return () => document.removeEventListener('click', handleClickOutside);
+  }, [tatuadoresDesktopAbierto, perforadoresDesktopAbierto]);
+
+  // Función para cargar tatuadores y perforadores
+  const cargarTatuadoresYPerforadores = useCallback(async (forceReload = false) => {
+    if (isLoadingArtists && !forceReload) return;
+    
+    setIsLoadingArtists(true);
+    
+    try {
+      // Si no es recarga forzada, intentar caché primero
+      if (!forceReload) {
+        const cachedTatuadores = cacheManager.get(CACHE_KEYS.TATUADORES, CACHE_TTL.TATUADORES);
+        const cachedPerforadores = cacheManager.get(CACHE_KEYS.PERFORADORES, CACHE_TTL.PERFORADORES);
+        
+        if (cachedTatuadores && cachedPerforadores) {
+          setListaTatuadores(cachedTatuadores);
+          setListaPerforadores(cachedPerforadores);
+          setIsLoadingArtists(false);
+          return;
+        }
+      }
+
+      // Hacer consulta a Firebase
+      const snapshot = await getDocs(collection(db, 'tatuadores'));
+      const data = snapshot.docs.map(doc => ({
+        id: doc.id,
+        ...doc.data(),
+      }));
+
+      // Filtrar por tipo
+      const soloTatuadores = data.filter(item => item.tipo === 'tatuador');
+      const soloPerforadores = data.filter(item => item.tipo === 'perforador');
+
+      // Cachear los resultados
+      cacheManager.set(CACHE_KEYS.TATUADORES, soloTatuadores);
+      cacheManager.set(CACHE_KEYS.PERFORADORES, soloPerforadores);
+
+      setListaTatuadores(soloTatuadores);
+      setListaPerforadores(soloPerforadores);
+      
+      console.log(`🔄 Navbar: Cargados ${soloTatuadores.length} tatuadores y ${soloPerforadores.length} perforadores`);
+    } catch (error) {
+      console.error('Error al cargar tatuadores y perforadores:', error);
+    } finally {
+      setIsLoadingArtists(false);
+    }
+  }, [isLoadingArtists]);
+
+  // Hook para invalidación de caché por admin
+  useCacheInvalidation({
+    onArtistsInvalidated: () => {
+      console.log('🔄 Navbar: Recargando artistas por invalidación de admin');
+      cargarTatuadoresYPerforadores(true);
+    }
+  });
+
   useEffect(() => {
+    cargarTatuadoresYPerforadores();
+  }, [cargarTatuadoresYPerforadores]);
 
-    const updatePathname = () => {
+  // Función para actualizar el pathname (optimizada)
+  const updatePathname = useCallback(() => {
+    if (typeof window !== 'undefined') {
       try {
         const currentPath = window.location.pathname;
         setPathname(currentPath);
       } catch (error) {
-        console.log('Error al obtener pathname:', error);
+        console.error('Error al obtener pathname:', error);
       }
-    };
+    }
+  }, []);
 
+  useEffect(() => {
+    setIsClient(true);
     // Actualizar pathname inicial
     updatePathname();
+  }, [updatePathname]);
+
+  useEffect(() => {
+    if (!isClient) return;
 
     // Escuchar cambios de navegación
-    window.addEventListener('popstate', updatePathname);
+    const handlePopState = () => {
+      setTimeout(updatePathname, 50);
+    };
 
-    // Observar cambios en la URL para Next.js
+    window.addEventListener('popstate', handlePopState, { passive: true });
+
+    // Observar cambios en la URL para Next.js (con throttling)
+    let timeoutId;
     const observer = new MutationObserver(() => {
-      if (window.location.pathname !== pathname) {
-        updatePathname();
+      const currentPath = window.location.pathname;
+      if (currentPath !== pathname) {
+        clearTimeout(timeoutId);
+        timeoutId = setTimeout(() => {
+          setPathname(currentPath);
+        }, 100);
       }
     });
 
@@ -90,44 +156,60 @@ const Navbar = () => {
     });
 
     return () => {
-      window.removeEventListener('popstate', updatePathname);
+      window.removeEventListener('popstate', handlePopState);
       observer.disconnect();
+      clearTimeout(timeoutId);
     };
-  }, [pathname]);
+  }, [isClient, pathname, updatePathname]);
 
-  // Función para verificar si una ruta está activa
-  const isActiveRoute = (route) => pathname === route;
-  const isActiveSection = (section) => pathname.startsWith(section);
-  
-  // Función para verificar si estamos en una ruta de tatuador
-  const isOnTatuadorRoute = () => {
+  // Función para verificar si una ruta está activa (memoizada)
+  const isActiveRoute = useCallback((route) => pathname === route, [pathname]);
+  const isActiveSection = useCallback((section) => pathname.startsWith(section), [pathname]);
+
+  // Función para verificar si estamos en una ruta de tatuador (memoizada)
+  const isOnTatuadorRoute = useCallback(() => {
     // Si no hay pathname, no estamos en ninguna ruta específica
     if (!pathname || pathname === '/') return false;
-    
+
     // Verificar si el pathname actual (sin la barra inicial) coincide con algún slug de tatuador
     const currentSlug = pathname.substring(1); // Remover la barra inicial
     return listaTatuadores.some(tatuador => tatuador.slug === currentSlug);
-  };
+  }, [pathname, listaTatuadores]);
 
-  // Función para verificar si estamos en una ruta de perforador
-  const isOnPerforadorRoute = () => {
+  // Función para verificar si estamos en una ruta de perforador (memoizada)
+  const isOnPerforadorRoute = useCallback(() => {
     // Si no hay pathname, no estamos en ninguna ruta específica
     if (!pathname || pathname === '/') return false;
-    
+
     // Verificar si el pathname actual (sin la barra inicial) coincide con algún slug de perforador
     const currentSlug = pathname.substring(1); // Remover la barra inicial
     return listaPerforadores.some(perforador => perforador.slug === currentSlug);
-  };
+  }, [pathname, listaPerforadores]);
 
   useEffect(() => {
     if (!usuario) return;
 
-    const wishlistRef = collection(db, 'users', usuario.uid, 'wishlist');
-    const unsubscribe = onSnapshot(wishlistRef, (snapshot) => {
-      setCantidadDeseos(snapshot.size); // número de productos en wishlist
-    });
+    const actualizarCantidadDeseos = async () => {
+      try {
+        const wishlistRef = collection(db, 'users', usuario.uid, 'wishlist');
+        const snapshot = await getDocs(wishlistRef);
+        setCantidadDeseos(snapshot.size);
+      } catch (error) {
+        console.error('Error al obtener wishlist:', error);
+        setCantidadDeseos(0);
+      }
+    };
 
-    return () => unsubscribe();
+    // Cargar inicialmente
+    actualizarCantidadDeseos();
+    
+    // Actualizar cuando se agregue/elimine desde wishlist
+    const handleWishlistChange = () => actualizarCantidadDeseos();
+    window.addEventListener('wishlistActualizada', handleWishlistChange);
+
+    return () => {
+      window.removeEventListener('wishlistActualizada', handleWishlistChange);
+    };
   }, [usuario]);
 
 
@@ -158,7 +240,7 @@ const Navbar = () => {
               ...doc.data()
             });
           });
-          
+
           // Calcular cantidad total
           if (Array.isArray(productos) && productos.length > 0) {
             const cantidadTotal = productos.reduce((total, item) => total + (item.cantidad || 1), 0);
@@ -244,26 +326,18 @@ const Navbar = () => {
 
             {/* Navigation Links */}
             <ul className="flex items-center gap-4 ml-6 text-sm">
-              <li>
-                <Link
-                  href="/"
-                  className={`transition-colors ${isActiveSection('/') ? 'text-red-500' : 'hover:text-red-500'
+              <li className="relative">
+                <button
+                  onClick={() => { setTatuadoresDesktopAbierto(!tatuadoresDesktopAbierto); setPerforadoresDesktopAbierto(false); }} // cerrar el otro menú
+
+                  className={`transition-colors cursor-pointer ${isOnTatuadorRoute() ? 'text-red-500' : 'hover:text-red-500'
                     }`}
                 >
-                  Inicio
-                </Link>
-              </li>
-              <li
-                className="relative"
-                onMouseEnter={() => setTatuadoresDesktopAbierto(true)}
-                onMouseLeave={() => setTatuadoresDesktopAbierto(false)}
-              >
-                <span className={`transition-colors cursor-pointer ${isOnTatuadorRoute() ? 'text-red-500' : 'hover:text-red-500'
-                  }`}>
                   Tatuadores
-                </span>
+                </button>
+
                 {tatuadoresDesktopAbierto && (
-                  <ul className="absolute left-0 top-full mt-1 w-40 bg-black border border-gray-700 shadow-lg rounded z-50">
+                  <ul className="absolute left-0 top-full mt-1 w-48 bg-black border border-gray-700 shadow-lg rounded z-50">
                     {listaTatuadores.map((tatuador) => (
                       <li key={tatuador.id}>
                         <Link
@@ -272,6 +346,7 @@ const Navbar = () => {
                             ? 'text-red-500 bg-gray-800'
                             : 'text-white hover:text-red-500 hover:bg-gray-800'
                             }`}
+                          onClick={() => setTatuadoresDesktopAbierto(false)} // cerrar al seleccionar
                         >
                           {tatuador.nombre}
                         </Link>
@@ -279,18 +354,17 @@ const Navbar = () => {
                     ))}
                   </ul>
                 )}
-
               </li>
 
-              <li
-                className="relative"
-                onMouseEnter={() => setPerforadoresDesktopAbierto(true)}
-                onMouseLeave={() => setPerforadoresDesktopAbierto(false)}
-              >
-                <span className={`transition-colors cursor-pointer ${isOnPerforadorRoute() ? 'text-red-500' : 'hover:text-red-500'
-                  }`}>
+
+              <li className="relative">
+                <button
+                  onClick={() => { setPerforadoresDesktopAbierto(!perforadoresDesktopAbierto); setTatuadoresDesktopAbierto(false); }}
+                  className={`transition-colors cursor-pointer ${isOnPerforadorRoute() ? 'text-red-500' : 'hover:text-red-500'
+                    }`}
+                >
                   Perforadores
-                </span>
+                </button>
                 {perforadoresDesktopAbierto && (
                   <ul className="absolute left-0 top-full mt-1 w-40 bg-black border border-gray-700 shadow-lg rounded z-50">
                     {listaPerforadores.map((perforador) => (
@@ -301,7 +375,9 @@ const Navbar = () => {
                             ? 'text-red-500 bg-gray-800'
                             : 'text-white hover:text-red-500 hover:bg-gray-800'
                             }`}
-                        >
+
+
+                          onClick={() => setTatuadoresDesktopAbierto(false)}>
                           {perforador.nombre}
                         </Link>
                       </li>
@@ -319,7 +395,15 @@ const Navbar = () => {
                   Productos
                 </Link>
               </li>
+              {/* Link pedidos */}
+              <li>
+                <Link href="/mis-pedidos" className={`transition-colors ${isActiveSection('/mis-pedidos') ? 'text-red-500' : 'hover:text-red-500'}`}>
+                  Mis Pedidos
+                </Link>
+              </li>
             </ul>
+
+
 
             {/* Action Icons */}
             <ul className="flex items-center gap-3 ml-4 text-xl relative">
@@ -408,7 +492,7 @@ const Navbar = () => {
       {/* Mobile Menu Overlay */}
       {menuAbierto && (
         <div className="md:hidden fixed mt-0.4 w-full z-50 h-dvh">
-          <div className="bg-black text-white w-full h-full bg-[url('/assets/menu3.png')]">
+          <div className="bg-black text-white w-full h-full bg-[url('/assets/menu3.png')] bg-cover bg-center">
 
             {/* Mobile Menu Content */}
             <div className="px-8">
@@ -509,6 +593,12 @@ const Navbar = () => {
                       onClick={() => setMenuAbierto(false)}
                     >
                       Productos
+                    </Link>
+                  </li>
+                  <li>
+                    <Link href="/mis-pedidos" className={`block text-lg font-semibold py-2 transition-colors ${isActiveSection('/mis-pedidos') ? 'text-red-500' : 'hover:text-red-500'
+                        }`}>
+                      Mis Pedidos
                     </Link>
                   </li>
                 </ul>

@@ -15,6 +15,8 @@ export default function ProductosPage({
     categoriaPreseleccionada || 'todas'
   );
   const [isLoading, setIsLoading] = useState(false);
+  const [paginaActual, setPaginaActual] = useState(1);
+  const [productosPorPagina, setProductosPorPagina] = useState(10);
   const [showLeftArrow, setShowLeftArrow] = useState(false);
   const [showRightArrow, setShowRightArrow] = useState(false);
   const scrollContainerRef = useRef(null);
@@ -38,23 +40,22 @@ export default function ProductosPage({
         match = categoriaProducto.toLowerCase() === categoriaFiltro.toLowerCase();
       }
       
-      // Debug: mostrar comparaciones
-      if (!match && categoriaProducto) {
-        console.log(`❌ No match:`);
-        console.log(`  Producto: "${categoriaProducto}" (length: ${categoriaProducto.length})`);
-        console.log(`  Filtro: "${categoriaFiltro}" (length: ${categoriaFiltro.length})`);
-        console.log(`  Producto (lower): "${categoriaProducto.toLowerCase()}"`);
-        console.log(`  Filtro (lower): "${categoriaFiltro.toLowerCase()}"`);
-      } else if (match && categoriaProducto) {
-        console.log(`✅ Match encontrado: "${categoriaProducto}" === "${categoriaFiltro}"`);
-      }
-      
       return match;
     });
     
-    console.log('Productos filtrados:', filtrados.length);
     return filtrados;
   }, [productosIniciales, categoriaSeleccionada]);
+
+  // Cálculo de paginación
+  const totalPaginas = Math.ceil(productosFiltrados.length / productosPorPagina);
+  const indiceUltimoProducto = paginaActual * productosPorPagina;
+  const indicePrimerProducto = indiceUltimoProducto - productosPorPagina;
+  const productosPaginados = productosFiltrados.slice(indicePrimerProducto, indiceUltimoProducto);
+
+  // Resetear página cuando cambia la categoría o productos por página
+  React.useEffect(() => {
+    setPaginaActual(1);
+  }, [categoriaSeleccionada, productosPorPagina]);
 
   const handleCategoriaClick = (categoria) => {
     setIsLoading(true);
@@ -184,7 +185,7 @@ export default function ProductosPage({
               {showLeftArrow && (
                 <button
                   onClick={scrollLeft}
-                  className="absolute left-0 top-1/2 -translate-y-1/2 z-10 bg-black/80 hover:bg-black/90 text-white rounded-full p-2 shadow-lg transition-all duration-200 backdrop-blur-sm"
+                  className="absolute left-0 top-1/2 -translate-y-1/2 z-10 bg-white/80 hover:bg-red-700 text-black cursor-pointer rounded-full p-2 shadow-lg transition-all duration-200 backdrop-blur-sm"
                   aria-label="Scroll hacia la izquierda"
                 >
                   <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -303,7 +304,7 @@ export default function ProductosPage({
               {showRightArrow && (
                 <button
                   onClick={scrollRight}
-                  className="absolute right-0 top-1/2 -translate-y-1/2 z-10 bg-black/80 hover:bg-black/90 text-white rounded-full p-2 shadow-lg transition-all duration-200 backdrop-blur-sm cursor-pointer"
+                  className="absolute right-0 top-1/2 -translate-y-1/2 z-10 bg-white/80 hover:bg-red-700 text-black rounded-full p-2 shadow-lg transition-all duration-200 backdrop-blur-sm cursor-pointer"
                   aria-label="Scroll hacia la derecha"
                 >
                   <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -314,21 +315,6 @@ export default function ProductosPage({
             </div>
           </section>
 
-          {/* Contador de productos filtrados */}
-          <div className="mb-6">
-            <p className="text-gray-400 text-center" role="status" aria-live="polite">
-              {isLoading ? (
-                "Cargando productos..."
-              ) : (
-                <>
-                  Mostrando {productosFiltrados.length} productos
-                  {categoriaSeleccionada !== 'todas' && ` en "${categoriaSeleccionada}"`}
-                </>
-              )}
-            </p>
-          </div>
-
-          {/* Grid de productos con loading state */}
           <section className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-4  justify-items-center">
             {isLoading ? (
               // Loading skeleton
@@ -348,8 +334,8 @@ export default function ProductosPage({
                   </div>
                 </div>
               ))
-            ) : productosFiltrados.length > 0 ? (
-              productosFiltrados.map((producto, index) => (
+            ) : productosPaginados.length > 0 ? (
+              productosPaginados.map((producto, index) => (
                 <CardProducto key={`${producto.id}-${index}`} producto={producto} />
               ))
             ) : (
@@ -371,7 +357,137 @@ export default function ProductosPage({
               </div>
             )}
           </section>
+           {/* Controles de paginación */}
+          <div className="flex flex-col sm:flex-row justify-between items-center mt-6 mb-6 gap-4">
+            {/* Selector de productos por página */}
+            <div className="flex items-center gap-2 text-white">
+              <label htmlFor="productosPorPagina" className="text-sm font-medium">
+                Mostrar:
+              </label>
+              <select
+                id="productosPorPagina"
+                value={productosPorPagina}
+                onChange={(e) => setProductosPorPagina(parseInt(e.target.value))}
+                className="bg-gray-800 border border-gray-600 text-white px-3 py-1 rounded-md focus:outline-none focus:ring-2 focus:ring-red-600 focus:border-transparent"
+              >
+                {[5, 10, 15, 20, 25, 30].map((numero) => (
+                  <option key={numero} value={numero}>
+                    {numero}
+                  </option>
+                ))}
+              </select>
+              <span className="text-sm text-gray-400">por página</span>
+            </div>
 
+            {/* Información de página actual */}
+            <div className="text-sm text-gray-400">
+              Mostrando {indicePrimerProducto + 1}-{Math.min(indiceUltimoProducto, productosFiltrados.length)} de {productosFiltrados.length} productos
+            </div>
+          </div>
+
+          {/* Paginación solo si hay más de una página */}
+          {totalPaginas > 1 && (
+            <div className="flex justify-center mb-6">
+              <nav className="flex items-center space-x-1" aria-label="Paginación">
+                {/* Botón anterior */}
+                <button
+                  onClick={() => setPaginaActual(paginaActual - 1)}
+                  disabled={paginaActual === 1}
+                  className="px-3 py-2 text-sm font-medium text-gray-300 bg-gray-800 border border-gray-600 rounded-l-md hover:bg-gray-700 hover:text-white disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                  aria-label="Página anterior"
+                >
+                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
+                  </svg>
+                </button>
+
+                {/* Números de página */}
+                {(() => {
+                  const pages = [];
+                  const maxVisible = 5;
+                  let startPage = Math.max(1, paginaActual - Math.floor(maxVisible / 2));
+                  let endPage = Math.min(totalPaginas, startPage + maxVisible - 1);
+                  
+                  // Ajustar el inicio si estamos cerca del final
+                  if (endPage - startPage + 1 < maxVisible) {
+                    startPage = Math.max(1, endPage - maxVisible + 1);
+                  }
+
+                  // Primera página
+                  if (startPage > 1) {
+                    pages.push(
+                      <button
+                        key={1}
+                        onClick={() => setPaginaActual(1)}
+                        className="px-3 py-2 text-sm font-medium text-gray-300 bg-gray-800 border border-gray-600 hover:bg-gray-700 hover:text-white transition-colors"
+                      >
+                        1
+                      </button>
+                    );
+                    if (startPage > 2) {
+                      pages.push(
+                        <span key="ellipsis1" className="px-3 py-2 text-sm text-gray-500">
+                          ...
+                        </span>
+                      );
+                    }
+                  }
+
+                  // Páginas visibles
+                  for (let i = startPage; i <= endPage; i++) {
+                    pages.push(
+                      <button
+                        key={i}
+                        onClick={() => setPaginaActual(i)}
+                        className={`px-3 py-2 text-sm font-medium border transition-colors ${
+                          paginaActual === i
+                            ? 'text-white bg-red-600 border-red-600'
+                            : 'text-gray-300 bg-gray-800 border-gray-600 hover:bg-gray-700 hover:text-white'
+                        }`}
+                        aria-current={paginaActual === i ? 'page' : undefined}
+                      >
+                        {i}
+                      </button>
+                    );
+                  }
+
+                  // Última página
+                  if (endPage < totalPaginas) {
+                    if (endPage < totalPaginas - 1) {
+                      pages.push(
+                        <span key="ellipsis2" className="px-3 py-2 text-sm text-gray-500">
+                          ...
+                        </span>
+                      );
+                    }
+                    pages.push(
+                      <button
+                        key={totalPaginas}
+                        onClick={() => setPaginaActual(totalPaginas)}
+                        className="px-3 py-2 text-sm font-medium text-gray-300 bg-gray-800 border border-gray-600 hover:bg-gray-700 hover:text-white transition-colors"
+                      >
+                        {totalPaginas}
+                      </button>
+                    );
+                  }
+
+                  return pages;
+                })()}
+
+                {/* Botón siguiente */}
+                <button
+                  onClick={() => setPaginaActual(paginaActual + 1)}
+                  disabled={paginaActual === totalPaginas}
+                  className="px-3 py-2 text-sm font-medium text-gray-300 bg-gray-800 border border-gray-600 rounded-r-md hover:bg-gray-700 hover:text-white disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                  aria-label="Página siguiente"
+                >
+                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+                  </svg>
+                </button>
+              </nav>
+            </div>
+          )}
           {/* FAQ Section para SEO */}
           <section className="mt-2">
             <details className="bg-gray-900 rounded-lg p-6 max-w-4xl mx-auto">
@@ -385,7 +501,7 @@ export default function ProductosPage({
                 </div>
                 <div>
                   <h4 className="text-white font-medium mb-2">¿Hacen envíos a toda Colombia?</h4>
-                  <p>Realizamos envíos seguros a todo el territorio nacional. Los tiempos de entrega varían según la ubicación.</p>
+                  <p>Por el momento no realizamos envios, podras recoger los productos en nuestra tienda fisica.</p>
                 </div>
                 <div>
                   <h4 className="text-white font-medium mb-2">¿Ofrecen garantía?</h4>

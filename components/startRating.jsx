@@ -16,10 +16,11 @@ const StartRating = ({ value, onChange }) => {
             onClick={() => onChange(star)} // Al hacer click, cambia el rating
             onMouseEnter={() => setHover(star)} // Hover para efecto
             onMouseLeave={() => setHover(null)} // Quitar efecto al salir
+            className='cursor-pointer'
           >
             <FaStar
               size={24}
-              color={filled ? '#facc15' : '#d1d5db'} // Amarillo si activa, gris si no
+              color={filled ? '#ea0000' : '#d1d5db'} // Amarillo si activa, gris si no
             />
           </button>
         );

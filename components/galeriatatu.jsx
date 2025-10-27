@@ -1,7 +1,7 @@
 'use client'
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useCallback } from 'react';
 
-const GaleriaGrid = ({ imagenes = [], intervalo = 1000 }) => {
+const GaleriaGrid = ({ imagenes = [], intervalo = 2500 }) => {
   const [displayedImages, setDisplayedImages] = useState([]);
   const [changingIndex, setChangingIndex] = useState(-1);
   const [availableImages, setAvailableImages] = useState([]); // Imágenes disponibles para intercambio
@@ -104,8 +104,8 @@ const GaleriaGrid = ({ imagenes = [], intervalo = 1000 }) => {
         // Limpiar el estado de cambio después del fade in
         setTimeout(() => {
           setChangingIndex(-1);
-        }, 300);
-      }, 300);
+        }, 150);
+      }, 150);
     }, intervalo);
     
     return () => clearInterval(timer);
@@ -121,13 +121,17 @@ const GaleriaGrid = ({ imagenes = [], intervalo = 1000 }) => {
           <img
             src={imgData.src}
             alt={`galeria-${idx}`}
-            className={`w-full h-[120px] object-cover transition-all duration-300 ease-in-out transform ${
+            loading="lazy"
+            decoding="async"
+            className={`w-full h-[25
+              0px] object-cover transition-all duration-300 ease-in-out transform ${
               changingIndex === idx 
                 ? 'opacity-0 scale-95' 
                 : 'opacity-100 scale-100 hover:scale-105'
             }`}
             style={{
-              filter: changingIndex === idx ? 'blur(2px)' : 'blur(0px)'
+              filter: changingIndex === idx ? 'blur(2px)' : 'blur(0px)',
+              willChange: changingIndex === idx ? 'opacity, transform, filter' : 'auto'
             }}
           />
           

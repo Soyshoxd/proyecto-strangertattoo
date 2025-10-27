@@ -90,56 +90,106 @@ const ReviewForm = () => {
   return (
     <main className="bg-black min-h-97">
       <Navbar />
-      <div className="flex flex-col p-6">
-        <h1 className="text-red-600 font-mistranger text-[35px] mb-4 text-glow-red text-center">
-          Cuentanos tu experiencia
-        </h1> 
-        <p className="text-white font-monserrat">
-          Nos encanta saber cómo fue tu experiencia. Deja tu reseña y ayuda a mejorar cada día.
-        </p>
+      <div className="max-w-2xl mx-auto p-6 bg-black rounded-2xl shadow-lg">
+        <div className="text-center mb-6">
+          <h1 className="text-red-600 font-mistranger text-4xl text-glow-red">Cuentanos tu experiencia</h1>
+          <p className="text-gray-200 mt-5 font-monserrat">
+            Nos encanta saber cómo fue tu experiencia. Deja tu reseña y ayúdanos a mejorar.
+          </p>
+        </div>
+
+        <form onSubmit={handleSubmit} className="space-y-5">
+          {!user && (
+            <>
+              <input
+                name="nombre"
+                placeholder="Tu nombre"
+                required
+                className="w-full p-3 rounded-md bg-gray-100 text-black placeholder:text-gray-500"
+              />
+              <input
+                name="email"
+                type="email"
+                placeholder="Tu correo"
+                required
+                className="w-full p-3 rounded-md bg-gray-100 text-black placeholder:text-gray-500"
+              />
+            </>
+          )}
+          <div>
+            <label className="block mb-2 text-white font-semibold">Deja tu comentario:</label>
+            <textarea
+              name="comentario"
+              placeholder="Cuéntanos cómo fue tu experiencia..."
+              required
+              rows={4}
+              className="w-full p-3 rounded-md bg-gray-100 text-black placeholder:text-gray-500 resize-none"
+            />
+          </div>
+          <div>
+            <label className="block mb-2 text-white font-semibold">Calificación:</label>
+            <StartRating value={rating} onChange={setRating} />
+          </div>
+
+          <div>
+            <label className="block mb-2 text-white font-semibold">Imagen (opcional):</label>
+
+            <div className="flex items-center gap-4">
+              <label
+                htmlFor="foto"
+                className="cursor-pointer px-4 py-2 bg-gray-800 text-white rounded-md hover:bg-gray-700 transition"
+              >
+                Seleccionar imagen
+              </label>
+              {foto && <span className="text-sm text-gray-300">{foto.name}</span>}
+            </div>
+
+            <input
+              id="foto"
+              type="file"
+              accept="image/*"
+              onChange={(e) => setFoto(e.target.files[0])}
+              className="hidden"
+            />
+          </div>
+
+
+          <div className="space-y-2 text-white">
+            <label className="flex items-center gap-2">
+              <input
+                type="checkbox"
+                checked={esAnonima}
+                onChange={() => setEsAnonima(!esAnonima)}
+                className="accent-red-500"
+              />
+              Deseo que mi reseña sea anónima
+            </label>
+
+            <label className="flex items-center gap-2">
+              <input
+                type="checkbox"
+                checked={mostrarEnSlider}
+                onChange={() => setMostrarEnSlider(!mostrarEnSlider)}
+                className="accent-red-500"
+              />
+              Mostrar esta reseña en el slider destacado
+            </label>
+          </div>
+
+          <button
+            type="submit"
+            disabled={loading}
+            className=" cursor-pointer w-full py-3 rounded-md bg-red-600 hover:bg-red-700 transition text-white font-semibold"
+          >
+            {loading ? 'Enviando...' : 'Enviar reseña'}
+          </button>
+
+          {mensaje && (
+            <p className="text-sm text-white font-medium mt-2">{mensaje}</p>
+          )}
+        </form>
       </div>
-      <form onSubmit={handleSubmit} className="p-4 shadow">
-        {!user && (
-          <>
-            <input name="nombre" placeholder="Tu nombre" required className="p-2 text-black bg-gray-300 w-full" />
-            <input name="email" type="email" placeholder="Tu correo" required className="p-2 text-black bg-gray-300 w-full" />
-          </>
-        )}
 
-        <textarea name="comentario" placeholder="Cuéntanos cómo fue tu experiencia..." required className="p-2 text-black bg-gray-300 w-full" />
-
-        <div>
-          <label className="block mb-1 font-medium text-white">Calificación:</label>
-          <StartRating value={rating} onChange={setRating} />
-        </div>
-
-        <div className="my-2">
-          <label className="block mb-1 text-white">Imagen (opcional):</label>
-          <input
-            type="file"
-            accept="image/*"
-            onChange={(e) => setFoto(e.target.files[0])}
-            className="input"
-          />
-        </div>
-
-        <div className="text-white space-y-2 my-2">
-          <label className="flex items-center gap-2">
-            <input type="checkbox" checked={esAnonima} onChange={() => setEsAnonima(!esAnonima)} />
-            Deseo que mi reseña sea anónima
-          </label>
-          <label className="flex items-center gap-2">
-            <input type="checkbox" checked={mostrarEnSlider} onChange={() => setMostrarEnSlider(!mostrarEnSlider)} />
-            Mostrar esta reseña en el slider destacado
-          </label>
-        </div>
-
-        <button type="submit" disabled={loading} className="btn">
-          {loading ? 'Enviando...' : 'Enviar reseña'}
-        </button>
-
-        {mensaje && <p className="mt-2 text-sm text-green-600">{mensaje}</p>}
-      </form>
       <Footer />
     </main>
   );

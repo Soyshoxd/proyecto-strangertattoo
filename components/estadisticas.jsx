@@ -1,3 +1,5 @@
+'use client';
+
 import Image from 'next/image';
 import { BsPencilSquare } from "react-icons/bs";
 import imgMaquina from '@/assets/maquina.png';
