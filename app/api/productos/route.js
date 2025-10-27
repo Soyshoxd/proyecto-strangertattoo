@@ -21,34 +21,40 @@ export async function GET(request) {
     const noCache = searchParams.get("nocache") === "true";
     const cacheKey = getCacheKey(categoria);
 
-    if (noCache) cache.delete(cacheKey);
+    if (noCache) {
+      cache.delete(cacheKey);
+      console.log("🔄 Cache forzado a recargar (nocache=true)");
+    }
 
     // Verificar timestamp de invalidación del admin
     const invalidationTimestamp = getTimestamp('productos');
     const allInvalidationTimestamp = getTimestamp('all');
     const lastInvalidation = Math.max(invalidationTimestamp, allInvalidationTimestamp);
 
-    const metaRef = db.collection("meta").doc("productos");
-    const metaSnap = await metaRef.get();
-
-    let lastUpdated = 0;
-    if (metaSnap.exists) {
-      const field = metaSnap.data().lastUpdated;
-      if (field && typeof field.toMillis === "function") {
-        lastUpdated = field.toMillis();
-      }
-    }
-
     const cached = cache.get(cacheKey);
 
-    // Invalidar si el admin marcó como inválido O si meta.lastUpdated es más reciente
-    if (cached && isCacheValid(cached.timestamp) && lastUpdated <= cached.timestamp && lastInvalidation <= cached.timestamp) {
-      console.log("📦 Productos desde caché (válido)");
-      return NextResponse.json(cached.data);
-    }
-
-    if (cached && lastInvalidation > cached.timestamp) {
-      console.log("🔄 Cache invalidado por admin, recargando...");
+    // Solo usar caché si:
+    // 1. Existe el caché
+    // 2. No ha expirado el TTL de 24 horas
+    // 3. No ha sido invalidado por el admin
+    if (cached) {
+      const cacheAge = Date.now() - cached.timestamp;
+      const isExpired = cacheAge >= CACHE_TTL;
+      const wasInvalidated = lastInvalidation > cached.timestamp;
+      
+      if (!isExpired && !wasInvalidated) {
+        const hoursOld = (cacheAge / (1000 * 60 * 60)).toFixed(2);
+        console.log(`📦 Productos desde caché (${hoursOld}h de antigüedad, válido por 24h)`);
+        return NextResponse.json(cached.data);
+      }
+      
+      if (isExpired) {
+        console.log("⏰ Cache expirado (24h cumplidas), recargando...");
+      }
+      
+      if (wasInvalidated) {
+        console.log("🔄 Cache invalidado por admin, recargando...");
+      }
     }
 
     console.log("🧠 Consultando Firebase (Admin SDK)…");
@@ -62,9 +68,10 @@ export async function GET(request) {
       ...doc.data(),
     }));
 
-    cache.set(cacheKey, { data: productos, timestamp: Date.now() });
+    const now = Date.now();
+    cache.set(cacheKey, { data: productos, timestamp: now });
 
-    console.log("✅ Productos actualizados:", productos.length);
+    console.log(`✅ Productos actualizados: ${productos.length} - Cache válido hasta: ${new Date(now + CACHE_TTL).toLocaleString('es-CO')}`);
     return NextResponse.json(productos);
   } catch (error) {
     console.error("❌ Error obteniendo productos:", error);

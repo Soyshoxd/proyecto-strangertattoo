@@ -28,7 +28,7 @@ async function getCategorias() {
   const baseUrl = process.env.NEXT_PUBLIC_BASE_URL || 'http://localhost:3000';
   try {
     const res = await fetch(`${baseUrl}/api/categorias`, {
-      next: { revalidate: 300, tags: ['categorias'] },
+      next: { revalidate: 86400, tags: ['categorias'] }, // 24 horas
     });
     if (!res.ok) return [];
     return await res.json();
@@ -42,7 +42,7 @@ async function getProductos() {
   const baseUrl = process.env.NEXT_PUBLIC_BASE_URL || 'http://localhost:3000';
   try {
     const res = await fetch(`${baseUrl}/api/productos`, {
-      next: { revalidate: 300, tags: ['productos'] },
+      next: { revalidate: 86400, tags: ['productos'] }, // 24 horas
     });
     if (!res.ok) return [];
     return await res.json();

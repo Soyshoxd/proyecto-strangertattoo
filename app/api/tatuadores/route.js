@@ -15,16 +15,25 @@ export async function GET() {
 
     const cached = cache.get(CACHE_KEY);
 
-    // Usar cache si es válido y no fue invalidado
-    if (cached && 
-        (Date.now() - cached.timestamp) < CACHE_TTL &&
-        lastInvalidation <= cached.timestamp) {
-      console.log('📦 Tatuadores desde caché (válido)');
-      return NextResponse.json(cached.data);
-    }
-
-    if (cached && lastInvalidation > cached.timestamp) {
-      console.log('🔄 Cache de tatuadores invalidado por admin, recargando...');
+    // Solo usar caché si no ha expirado y no fue invalidado
+    if (cached) {
+      const cacheAge = Date.now() - cached.timestamp;
+      const isExpired = cacheAge >= CACHE_TTL;
+      const wasInvalidated = lastInvalidation > cached.timestamp;
+      
+      if (!isExpired && !wasInvalidated) {
+        const hoursOld = (cacheAge / (1000 * 60 * 60)).toFixed(2);
+        console.log(`📦 Tatuadores desde caché (${hoursOld}h de antigüedad, válido por 24h)`);
+        return NextResponse.json(cached.data);
+      }
+      
+      if (isExpired) {
+        console.log("⏰ Cache expirado (24h cumplidas), recargando...");
+      }
+      
+      if (wasInvalidated) {
+        console.log('🔄 Cache invalidado por admin, recargando...');
+      }
     }
 
     console.log('🧠 Consultando Firebase para tatuadores...');
@@ -34,8 +43,9 @@ export async function GET() {
       ...doc.data() 
     }));
     
-    cache.set(CACHE_KEY, { data: tatuadores, timestamp: Date.now() });
-    console.log(`✅ Tatuadores actualizados: ${tatuadores.length}`);
+    const now = Date.now();
+    cache.set(CACHE_KEY, { data: tatuadores, timestamp: now });
+    console.log(`✅ Tatuadores actualizados: ${tatuadores.length} - Cache válido hasta: ${new Date(now + CACHE_TTL).toLocaleString('es-CO')}`);
     
     return NextResponse.json(tatuadores);
   } catch (error) {

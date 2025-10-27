@@ -45,8 +45,8 @@ export const metadata = {
   },
 };
 
-// Configurar ISR (revalidar cada 5 minutos)
-export const revalidate = 300;
+// Configurar ISR (revalidar cada 24 horas - 86400 segundos)
+export const revalidate = 86400;
 
 export default async function Home() {
   // Obtener la URL base, usando una URL por defecto si no está definida
@@ -56,7 +56,7 @@ export default async function Home() {
   let productos = [];
   try {
     const res = await fetch(`${baseUrl}/api/productos`, {
-      next: { revalidate: 300 } // ISR para productos
+      next: { revalidate: 86400 } // ISR para productos (24 horas)
     });
     
     if (res.ok) {
@@ -70,7 +70,7 @@ export default async function Home() {
   
   try {
     const res = await fetch(`${baseUrl}/api/reviews`, {
-      next: { revalidate: 300 } // ISR para reviews también
+      next: { revalidate: 86400 } // ISR para reviews (24 horas)
     });
     
     if (res.ok) {

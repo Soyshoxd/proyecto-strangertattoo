@@ -13,16 +13,25 @@ export async function GET() {
 
     const cached = cache.get(CACHE_KEY);
 
-    // Usar cache si es válido y no fue invalidado
-    if (cached && 
-        (Date.now() - cached.timestamp) < CACHE_TTL &&
-        allInvalidationTimestamp <= cached.timestamp) {
-      console.log('📦 Categorías desde caché (válido)');
-      return NextResponse.json(cached.data);
-    }
-
-    if (cached && allInvalidationTimestamp > cached.timestamp) {
-      console.log('🔄 Cache de categorías invalidado, recargando...');
+    // Solo usar caché si no ha expirado y no fue invalidado
+    if (cached) {
+      const cacheAge = Date.now() - cached.timestamp;
+      const isExpired = cacheAge >= CACHE_TTL;
+      const wasInvalidated = allInvalidationTimestamp > cached.timestamp;
+      
+      if (!isExpired && !wasInvalidated) {
+        const hoursOld = (cacheAge / (1000 * 60 * 60)).toFixed(2);
+        console.log(`📦 Categorías desde caché (${hoursOld}h de antigüedad, válido por 24h)`);
+        return NextResponse.json(cached.data);
+      }
+      
+      if (isExpired) {
+        console.log("⏰ Cache expirado (24h cumplidas), recargando...");
+      }
+      
+      if (wasInvalidated) {
+        console.log('🔄 Cache invalidado por admin, recargando...');
+      }
     }
 
     console.log('🧠 Consultando Firebase para categorías...');
@@ -32,8 +41,9 @@ export async function GET() {
       ...doc.data() 
     }));
     
-    cache.set(CACHE_KEY, { data: categorias, timestamp: Date.now() });
-    console.log(`✅ Categorías actualizadas: ${categorias.length}`);
+    const now = Date.now();
+    cache.set(CACHE_KEY, { data: categorias, timestamp: now });
+    console.log(`✅ Categorías actualizadas: ${categorias.length} - Cache válido hasta: ${new Date(now + CACHE_TTL).toLocaleString('es-CO')}`);
     
     return NextResponse.json(categorias);
   } catch (error) {
